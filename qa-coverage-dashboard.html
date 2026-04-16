@@ -991,29 +991,46 @@ function getField(fields, key) {
   return f ? f.value : null;
 }
 
-// Debug helper — logs raw first test case from first suite to console
+// Debug helper — tests WIT batch API to inspect automation status field
 async function debugRawResponse(planId, pat) {
-  const base = `https://dev.azure.com/${ORG}/${PROJECT}/_apis/testplan`;
+  const baseTestPlan = `https://dev.azure.com/${ORG}/${PROJECT}/_apis/testplan`;
+  const baseTest     = `https://dev.azure.com/${ORG}/${PROJECT}/_apis/test`;
+  const baseWit      = `https://dev.azure.com/${ORG}/${PROJECT}/_apis/wit`;
   try {
-    const suitesResp = await adoFetch(`${base}/plans/${planId}/suites?api-version=7.0`, pat);
+    // Step 1: get suites
+    console.log('[DEBUG] Step 1: Loading suites...');
+    const suitesResp = await adoFetch(`${baseTestPlan}/plans/${planId}/suites?api-version=7.0`, pat);
     const suites = suitesResp.value || [];
-    if (suites.length === 0) { console.log('[DEBUG] No suites found'); return; }
-    const firstSuite = suites[0];
-    const tcResp = await adoFetch(`${base}/plans/${planId}/suites/${firstSuite.id}/testcases?api-version=7.0`, pat);
-    const tcs = tcResp.value || [];
-    console.log('[DEBUG] Suite:', firstSuite.name, '| TC count:', tcs.length);
-    if (tcs.length > 0) console.log('[DEBUG] First TC raw:', JSON.stringify(tcs[0], null, 2));
-    else console.log('[DEBUG] Suite has no test cases, trying next suite...');
-    // Try to find a suite with TCs
-    for (const s of suites.slice(1, 5)) {
-      const r = await adoFetch(`${base}/plans/${planId}/suites/${s.id}/testcases?api-version=7.0`, pat);
-      const t = r.value || [];
-      if (t.length > 0) {
-        console.log('[DEBUG] Suite with TCs:', s.name);
-        console.log('[DEBUG] First TC raw:', JSON.stringify(t[0], null, 2));
-        break;
-      }
+    console.log('[DEBUG] Suites found:', suites.length, suites.map(s => s.name));
+
+    // Step 2: find first suite with test cases
+    let firstTcId = null;
+    for (const s of suites) {
+      try {
+        const r = await adoFetch(`${baseTest}/plans/${planId}/suites/${s.id}/testcases?api-version=7.0`, pat);
+        const tcs = r.value || [];
+        if (tcs.length > 0) {
+          firstTcId = tcs[0].testCase?.id;
+          console.log('[DEBUG] First TC in suite', s.name, '-> ID:', firstTcId);
+          console.log('[DEBUG] Raw TC object:', JSON.stringify(tcs[0], null, 2));
+          break;
+        }
+      } catch(e) {}
     }
+
+    if (!firstTcId) { console.log('[DEBUG] No test cases found in any suite'); return; }
+
+    // Step 3: fetch that work item directly and dump ALL fields
+    console.log('[DEBUG] Step 3: Fetching WIT fields for TC', firstTcId);
+    const wiResp = await adoFetch(`${baseWit}/workitems/${firstTcId}?$expand=fields&api-version=7.0`, pat);
+    console.log('[DEBUG] ALL WIT fields:', JSON.stringify(wiResp.fields, null, 2));
+
+    // Step 4: try batch with explicit field name variations
+    console.log('[DEBUG] Step 4: Testing batch fetch field names...');
+    const batchUrl = `${baseWit}/workitems?ids=${firstTcId}&fields=System.Id,dwn_Automation%20Status,Microsoft.VSTS.TCM.AutomationStatus&api-version=7.0`;
+    const batchResp = await adoFetch(batchUrl, pat);
+    console.log('[DEBUG] Batch fields result:', JSON.stringify(batchResp, null, 2));
+
   } catch(e) { console.log('[DEBUG] Error:', e); }
 }
 
