@@ -928,46 +928,28 @@ async function loadPlanData(planId, pat, onProgress = () => {}) {
     }
   }
 
-  // 3. Fetch automation status via WIQL batch query (avoids CORS issues with GET)
+  // 3. Fetch automation status via parallel individual GETs
+  // (batch POST silently drops custom fields; single GET with explicit fields works)
   const allTcIds = Object.keys(tcSuiteMap).map(Number);
   onProgress(`Fetching automation status for ${allTcIds.length} test cases…`);
 
-  const wiFieldMap = {}; // id -> normalised status
-  const BATCH_SIZE = 100;
+  const wiFieldMap = {};
+  const CONCURRENCY = 20;
 
-  for (let i = 0; i < allTcIds.length; i += BATCH_SIZE) {
-    const batch = allTcIds.slice(i, i + BATCH_SIZE);
-    try {
-      // Use POST to _apis/wit/workitemsbatch — supports CORS from browser with PAT
-      const batchUrl = `https://dev.azure.com/${ORG}/${PROJECT}/_apis/wit/workitemsbatch?api-version=${API_VER}`;
-      const token = btoa(':' + pat);
-      const res = await fetch(batchUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          ids: batch,
-          fields: ['System.Id', 'dwn_Automation Status', 'Microsoft.VSTS.Common.Priority']
-        })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        for (const wi of (data.value || [])) {
-          const f = wi.fields || {};
-          const raw = f['dwn_Automation Status'] || f['Microsoft.VSTS.TCM.AutomationStatus'] || '';
-          wiFieldMap[wi.id] = normaliseStatus(raw);
-          if (wi.id === allTcIds[0]) {
-            console.log('[QA] Sample WIT fields:', JSON.stringify(f));
-          }
-        }
-      } else {
-        console.warn('[QA] workitemsbatch failed:', res.status, res.statusText);
+  for (let i = 0; i < allTcIds.length; i += CONCURRENCY) {
+    const batch = allTcIds.slice(i, i + CONCURRENCY);
+    onProgress(`Fetching fields… ${Math.min(i + CONCURRENCY, allTcIds.length)}/${allTcIds.length}`);
+    await Promise.all(batch.map(async (id) => {
+      try {
+        const url = `https://dev.azure.com/${ORG}/_apis/wit/workitems/${id}?fields=System.Id,Custom.dwn_AutomationStatus&api-version=${API_VER}`;
+        const wi = await adoFetch(url, pat);
+        const f = wi.fields || {};
+        if (id === allTcIds[0]) console.log('[QA] Sample single WIT fields:', JSON.stringify(f));
+        wiFieldMap[id] = normaliseStatus(f['Custom.dwn_AutomationStatus'] || '');
+      } catch(e) {
+        wiFieldMap[id] = 'Required';
       }
-    } catch(e) {
-      console.warn('[QA] workitemsbatch error:', e.message);
-    }
+    }));
   }
 
   // 4. Assemble final test case list
