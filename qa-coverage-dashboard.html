@@ -896,6 +896,14 @@ async function loadPlanData(planId, pat, onProgress = () => {}) {
       const tcUrl = `${baseTest}/plans/${planId}/suites/${suite.id}/testcases?api-version=${API_VER}&witFields=System.Id,System.Title,dwn_Automation%20Status,Microsoft.VSTS.Common.Priority`;
       const tcResp = await adoFetch(tcUrl, pat);
       tcs = tcResp.value || [];
+      // Log first TC of first suite with results so we can inspect field shape
+      if (tcs.length > 0 && !window._tcLogged) {
+        window._tcLogged = true;
+        console.log('[QA] First TC raw shape:', JSON.stringify(tcs[0], null, 2));
+        console.log('[QA] testCase keys:', Object.keys(tcs[0].testCase || {}));
+        console.log('[QA] witFields on testCase:', tcs[0].testCase?.witFields);
+        console.log('[QA] workItemFields on testCase:', tcs[0].testCase?.workItemFields);
+      }
     } catch (e) {
       tcs = [];
     }
