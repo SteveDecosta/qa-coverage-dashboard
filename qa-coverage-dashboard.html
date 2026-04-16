@@ -913,10 +913,10 @@ async function loadPlanData(planId, pat, onProgress = () => {}) {
     }
   }
 
-  onProgress(`Fetching fields for ${allTcIds.length} test cases…`);
   // 3. Batch fetch work item fields to get dwn_Automation Status
   // WIT API supports up to 200 IDs per request
   const allTcIds = Object.keys(tcSuiteMap).map(Number);
+  onProgress(`Fetching fields for ${allTcIds.length} test cases…`);
   const wiFieldMap = {}; // id -> automationStatus string
 
   const BATCH_SIZE = 200;
