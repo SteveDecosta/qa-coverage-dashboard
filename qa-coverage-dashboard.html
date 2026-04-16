@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QA Coverage — Downing LLP</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg-base:    #0d0f12;
+    --bg-surface: #131619;
+    --bg-card:    #191c21;
+    --bg-hover:   #1f2328;
+    --border:     #2a2e35;
+    --border-dim: #1e2228;
+
+    --text-primary:   #e8eaed;
+    --text-secondary: #8b949e;
+    --text-dim:       #484f58;
+
+    --accent-blue:   #388bfd;
+    --accent-cyan:   #39c5cf;
+    --accent-green:  #3fb950;
+    --accent-amber:  #d29922;
+    --accent-red:    #f85149;
+    --accent-purple: #bc8cff;
+
+    --status-automated:  #3fb950;
+    --status-required:   #d29922;
+    --status-not-needed: #484f58;
+
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-sans: 'IBM Plex Sans', sans-serif;
+
+    --radius: 6px;
+    --radius-lg: 10px;
+    --transition: 0.15s ease;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── LAYOUT ──────────────────────────────── */
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── TOP BAR ─────────────────────────────── */
+  .topbar {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 48px;
+    flex-shrink: 0;
+  }
+
+  .topbar-brand {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--accent-cyan);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .topbar-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+  }
+
+  .plan-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .plan-select-wrap label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  select {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 4px 28px 4px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b949e'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    transition: border-color var(--transition);
+  }
+
+  select:focus { outline: none; border-color: var(--accent-blue); }
+
+  .pat-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  .pat-wrap label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+
+  .pat-input {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: var(--radius);
+    width: 200px;
+    transition: border-color var(--transition);
+  }
+  .pat-input:focus { outline: none; border-color: var(--accent-blue); }
+  .pat-input::placeholder { color: var(--text-dim); }
+
+  .btn {
+    background: var(--accent-blue);
+    color: #fff;
+    border: none;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background var(--transition), opacity var(--transition);
+    white-space: nowrap;
+  }
+  .btn:hover { background: #4d9fff; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .btn.btn-ghost:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+  .btn.btn-sm { padding: 3px 10px; font-size: 10px; }
+  .btn.btn-danger { background: var(--accent-red); }
+
+  .refresh-status {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  /* ── TABS ────────────────────────────────── */
+  .tab-bar {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 0;
+    padding: 0 20px;
+    flex-shrink: 0;
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color var(--transition), border-color var(--transition);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text-primary); }
+  .tab-btn.active {
+    color: var(--accent-cyan);
+    border-bottom-color: var(--accent-cyan);
+  }
+
+  /* ── CONTENT AREA ────────────────────────── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── STATES ──────────────────────────────── */
+  .state-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+  .state-icon {
+    font-size: 32px;
+    opacity: 0.5;
+  }
+  .state-title {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .state-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    max-width: 400px;
+  }
+
+  .error-box {
+    background: rgba(248, 81, 73, 0.08);
+    border: 1px solid rgba(248, 81, 73, 0.3);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .error-box .error-title {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-red);
+  }
+  .error-box .error-body {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+  }
+
+  /* ── OVERVIEW TAB ────────────────────────── */
+  .plan-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .plan-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .plan-title {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .plan-id {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: var(--bg-hover);
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border-dim);
+  }
+
+  .coverage-hero {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .coverage-pct {
+    font-family: var(--font-mono);
+    font-size: 48px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .coverage-pct.coverage-good  { color: var(--accent-green); }
+  .coverage-pct.coverage-amber { color: var(--accent-amber); }
+  .coverage-pct.coverage-red   { color: var(--accent-red); }
+
+  .coverage-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .coverage-threshold-badge {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    align-self: flex-end;
+    margin-bottom: 8px;
+  }
+  .badge-good  { background: rgba(63,185,80,0.12);  color: var(--accent-green); border: 1px solid rgba(63,185,80,0.25); }
+  .badge-amber { background: rgba(210,153,34,0.12); color: var(--accent-amber); border: 1px solid rgba(210,153,34,0.25); }
+  .badge-red   { background: rgba(248,81,73,0.12);  color: var(--accent-red);   border: 1px solid rgba(248,81,73,0.25); }
+
+  .progress-track {
+    background: var(--bg-hover);
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .progress-fill.fill-good  { background: var(--accent-green); }
+  .progress-fill.fill-amber { background: var(--accent-amber); }
+  .progress-fill.fill-red   { background: linear-gradient(90deg, var(--accent-red), #ff6b63); }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .stat-cell {
+    background: var(--bg-hover);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+  }
+
+  .stat-cell .stat-val {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .stat-cell .stat-lbl {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    font-family: var(--font-mono);
+  }
+
+  .stat-val.clr-green  { color: var(--accent-green); }
+  .stat-val.clr-amber  { color: var(--accent-amber); }
+  .stat-val.clr-dim    { color: var(--text-dim); }
+  .stat-val.clr-blue   { color: var(--accent-blue); }
+
+  /* Suite breakdown table inside overview */
+  .suite-breakdown {
+    margin-top: 20px;
+    border-top: 1px solid var(--border-dim);
+    padding-top: 16px;
+  }
+
+  .breakdown-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-dim);
+  }
+
+  thead th.right { text-align: right; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border-dim);
+    transition: background var(--transition);
+  }
+
+  tbody tr:hover { background: var(--bg-hover); }
+  tbody tr:last-child { border-bottom: none; }
+
+  tbody td {
+    padding: 7px 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  tbody td.right { text-align: right; }
+  tbody td.mono  { font-family: var(--font-mono); }
+
+  .mini-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mini-bar {
+    flex: 1;
+    background: var(--bg-hover);
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+    min-width: 60px;
+  }
+  .mini-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+  }
+  .mini-bar-pct {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    width: 34px;
+    text-align: right;
+  }
+
+  /* ── GAP TAB ─────────────────────────────── */
+  .gap-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .gap-toolbar input[type="text"],
+  .gap-toolbar select {
+    font-size: 12px;
+  }
+
+  .search-input {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    width: 240px;
+    transition: border-color var(--transition);
+  }
+  .search-input:focus { outline: none; border-color: var(--accent-blue); }
+  .search-input::placeholder { color: var(--text-dim); }
+
+  .gap-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-left: auto;
+  }
+  .gap-count span { color: var(--accent-amber); font-weight: 600; }
+
+  .priority-badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .priority-high   { background: rgba(248,81,73,0.12); color: var(--accent-red);   border: 1px solid rgba(248,81,73,0.25); }
+  .priority-medium { background: rgba(210,153,34,0.12);color: var(--accent-amber); border: 1px solid rgba(210,153,34,0.25); }
+
+  .tc-id {
+    color: var(--accent-blue);
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .suite-group-header {
+    background: var(--bg-hover);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .suite-group-header td {
+    padding: 8px 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .suite-group-header .suite-name-col {
+    color: var(--text-primary);
+  }
+
+  .no-results {
+    text-align: center;
+    padding: 32px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  /* ── TREND TAB ───────────────────────────── */
+  .trend-layout {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .chart-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+  }
+
+  .chart-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+
+  .chart-wrap {
+    position: relative;
+    height: 300px;
+  }
+
+  .data-entry-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+  }
+
+  .card-section-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+  }
+
+  .form-field {
+    margin-bottom: 12px;
+  }
+
+  .form-field label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+  }
+
+  .form-field input {
+    width: 100%;
+    background: var(--bg-hover);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    transition: border-color var(--transition);
+  }
+  .form-field input:focus { outline: none; border-color: var(--accent-blue); }
+
+  .trend-points-list {
+    margin-top: 16px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .trend-point-row {
+    display: flex;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-dim);
+    gap: 8px;
+  }
+  .trend-point-row:last-child { border-bottom: none; }
+
+  .trend-point-date {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    flex: 1;
+  }
+  .trend-point-val {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent-cyan);
+  }
+
+  .delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 2px 4px;
+    font-size: 14px;
+    transition: color var(--transition);
+    line-height: 1;
+  }
+  .delete-btn:hover { color: var(--accent-red); }
+
+  .empty-trend {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  /* ── SCROLLBARS ──────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-base); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a4048; }
+
+  /* ── LOADING SPINNER ─────────────────────── */
+  .spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent-cyan);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── UTILITY ─────────────────────────────── */
+  .flex { display: flex; }
+  .items-center { align-items: center; }
+  .gap-8 { gap: 8px; }
+  .gap-12 { gap: 12px; }
+  .mt-4 { margin-top: 4px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-16 { margin-top: 16px; }
+  .muted { color: var(--text-secondary); }
+  .dim   { color: var(--text-dim); }
+
+  /* ── TOOLTIP ─────────────────────────────── */
+  [data-tip] {
+    position: relative;
+    cursor: default;
+  }
+  [data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: 130%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2a2e35;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 99;
+  }
+  [data-tip]:hover::after { opacity: 1; }
+
+  .tag-automated  { color: var(--accent-green); }
+  .tag-required   { color: var(--accent-amber); }
+  .tag-not-needed { color: var(--text-dim); }
+
+  .plan-select-wrap select { min-width: 180px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <span class="topbar-brand">QA Coverage</span>
+    <div class="topbar-sep"></div>
+    <div class="plan-select-wrap">
+      <label>Plan</label>
+      <select id="planSelect">
+        <option value="56110">56110 — Activity Based Test Plan</option>
+      </select>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="addPlanBtn" title="Add test plan">+ Plan</button>
+    <button class="btn btn-ghost btn-sm" id="debugBtn" title="Log raw API response to browser console">Debug</button>
+    <div class="topbar-sep"></div>
+    <div class="pat-wrap">
+      <label>PAT</label>
+      <input type="password" class="pat-input" id="patInput" placeholder="Paste Personal Access Token…">
+      <button class="btn" id="loadBtn">Load</button>
+    </div>
+    <span class="refresh-status" id="refreshStatus"></span>
+  </header>
+
+  <!-- TAB BAR -->
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="overview">Coverage Overview</button>
+    <button class="tab-btn" data-tab="gap">Automation Gap</button>
+    <button class="tab-btn" data-tab="trend">Trend</button>
+  </nav>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <!-- OVERVIEW TAB -->
+    <div class="tab-panel active" id="tab-overview">
+      <div id="overviewContent">
+        <div class="state-container">
+          <div class="state-icon">🔑</div>
+          <div class="state-title">Enter your PAT token to load test data</div>
+          <div class="state-sub">Your token is stored in sessionStorage only and never sent anywhere except the ADO API.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GAP TAB -->
+    <div class="tab-panel" id="tab-gap">
+      <div id="gapContent">
+        <div class="state-container">
+          <div class="state-icon">⏳</div>
+          <div class="state-title">Load a test plan first</div>
+          <div class="state-sub">Switch to the Coverage Overview tab and click Load.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TREND TAB -->
+    <div class="tab-panel" id="tab-trend">
+      <div id="trendContent">
+        <!-- built by renderTrendTab() -->
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ADD PLAN MODAL (lightweight inline) -->
+<div id="addPlanModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:200; display:none; align-items:center; justify-content:center;">
+  <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px; width:340px; font-family:var(--font-mono);">
+    <div style="font-size:13px; font-weight:600; color:var(--text-primary); margin-bottom:16px;">Add Test Plan</div>
+    <div class="form-field">
+      <label>Plan ID</label>
+      <input type="text" id="newPlanId" placeholder="e.g. 12345" style="width:100%;">
+    </div>
+    <div class="form-field">
+      <label>Display Name</label>
+      <input type="text" id="newPlanName" placeholder="e.g. Release 4.2 Test Plan" style="width:100%;">
+    </div>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button class="btn" id="addPlanConfirm">Add</button>
+      <button class="btn btn-ghost" id="addPlanCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+const ORG = 'downing-llp';
+const PROJECT = 'Delivery';
+const API_VER = '7.0';
+
+const state = {
+  plans: [{ id: '56110', name: '56110 — Activity Based Test Plan' }],
+  currentPlanId: '56110',
+  data: {}, // planId -> { suites, testCases, stats, lastLoaded, error }
+  loading: false
+};
+
+// ── Trend data per plan stored in localStorage ──
+function trendKey(planId) { return `qa_trend_${planId}`; }
+function getTrendData(planId) {
+  try { return JSON.parse(localStorage.getItem(trendKey(planId)) || '[]'); }
+  catch { return []; }
+}
+function saveTrendData(planId, points) {
+  localStorage.setItem(trendKey(planId), JSON.stringify(points));
+}
+
+// ── PAT in sessionStorage ──
+function getPAT() { return localStorage.getItem('qa_pat') || ''; }
+function setPAT(v) { localStorage.setItem('qa_pat', v); }
+
+// ══════════════════════════════════════════════
+// DOM HELPERS
+// ══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════════
+// ADO API
+// ══════════════════════════════════════════════
+async function adoFetch(url, pat) {
+  const token = btoa(':' + pat);
+  const res = await fetch(url, {
+    headers: { 'Authorization': `Basic ${token}`, 'Content-Type': 'application/json' }
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw { status: res.status, statusText: res.statusText, body };
+  }
+  return res.json();
+}
+
+async function loadPlanData(planId, pat, onProgress = () => {}) {
+  const baseTestPlan = `https://dev.azure.com/${ORG}/${PROJECT}/_apis/testplan`;
+  const baseTest     = `https://dev.azure.com/${ORG}/${PROJECT}/_apis/test`;
+
+  // 1. Get all suites — _apis/test confirmed working for downing-llp
+  onProgress("Loading suites…");
+  const suitesUrl = `${baseTest}/plans/${planId}/suites?api-version=${API_VER}`;
+  const suitesResp = await adoFetch(suitesUrl, pat);
+  const suites = suitesResp.value || [];
+
+  // 2. Get test cases for each suite
+  const testCaseMap = {};
+  let allTestCases = [];
+  // Collect all TC IDs -> suite mapping for batch WI fetch
+  const tcSuiteMap = {}; // tcId -> { suiteId, suiteName }
+
+  for (const suite of suites) {
+    let tcs = [];
+    try {
+      const tcUrl = `${baseTest}/plans/${planId}/suites/${suite.id}/testcases?api-version=${API_VER}`;
+      const tcResp = await adoFetch(tcUrl, pat);
+      tcs = tcResp.value || [];
+    } catch (e) {
+      tcs = [];
+    }
+
+    for (const tc of tcs) {
+      const id = tc.testCase?.id;
+      if (id && !tcSuiteMap[id]) {
+        tcSuiteMap[id] = {
+          suiteId:   suite.id,
+          suiteName: suite.name,
+          title:     tc.testCase?.name || 'Untitled',
+          priority:  tc.priority || 2
+        };
+      }
+    }
+  }
+
+  onProgress(`Fetching fields for ${allTcIds.length} test cases…`);
+  // 3. Batch fetch work item fields to get dwn_Automation Status
+  // WIT API supports up to 200 IDs per request
+  const allTcIds = Object.keys(tcSuiteMap).map(Number);
+  const wiFieldMap = {}; // id -> automationStatus string
+
+  const BATCH_SIZE = 200;
+  for (let i = 0; i < allTcIds.length; i += BATCH_SIZE) {
+    const batch = allTcIds.slice(i, i + BATCH_SIZE);
+    try {
+      const wiUrl = `https://dev.azure.com/${ORG}/${PROJECT}/_apis/wit/workitems?ids=${batch.join(',')}&fields=System.Id,System.Title,dwn_Automation%20Status,Microsoft.VSTS.Common.Priority&api-version=${API_VER}`;
+      const wiResp = await adoFetch(wiUrl, pat);
+      for (const wi of (wiResp.value || [])) {
+        const f = wi.fields || {};
+        const raw = f['dwn_Automation Status'] || f['Microsoft.VSTS.TCM.AutomationStatus'] || '';
+        wiFieldMap[wi.id] = normaliseStatus(raw);
+      }
+    } catch(e) {
+      console.warn('[QA] WIT batch fetch failed:', e);
+    }
+  }
+
+  // 4. Assemble final test case list
+  for (const [idStr, meta] of Object.entries(tcSuiteMap)) {
+    const id = Number(idStr);
+    const status = wiFieldMap[id] || 'Required';
+    const tc = {
+      id,
+      title:            meta.title,
+      suiteId:          meta.suiteId,
+      suiteName:        meta.suiteName,
+      automationStatus: status,
+      priority:         meta.priority
+    };
+    if (!testCaseMap[meta.suiteId]) testCaseMap[meta.suiteId] = [];
+    testCaseMap[meta.suiteId].push(tc);
+    allTestCases.push(tc);
+  }
+
+  // 5. Build stats
+  const total     = allTestCases.length;
+  const automated = allTestCases.filter(tc => tc.automationStatus === 'Automated').length;
+  const required  = allTestCases.filter(tc => tc.automationStatus === 'Required').length;
+  const notNeeded = allTestCases.filter(tc => tc.automationStatus === 'NotNeeded').length;
+  const covPct    = total > 0 ? Math.round((automated / total) * 100) : 0;
+
+  // Suite-level stats
+  const suiteStats = suites.map(s => {
+    const tcs = testCaseMap[s.id] || [];
+    const sTotal = tcs.length;
+    const sAuto  = tcs.filter(t => t.automationStatus === 'Automated').length;
+    const sReq   = tcs.filter(t => t.automationStatus === 'Required').length;
+    const sPct   = sTotal > 0 ? Math.round((sAuto / sTotal) * 100) : null;
+    return {
+      id: s.id,
+      name: s.name,
+      total: sTotal,
+      automated: sAuto,
+      required: sReq,
+      pct: sPct
+    };
+  }).filter(s => s.total > 0);
+
+  return {
+    suites,
+    suiteStats,
+    testCases: allTestCases,
+    stats: { total, automated, required, notNeeded, covPct },
+    lastLoaded: new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })
+  };
+}
+
+function getField(fields, key) {
+  if (!Array.isArray(fields)) return null;
+  const f = fields.find(f => f.key === key || f.name === key);
+  return f ? f.value : null;
+}
+
+// Debug helper — logs raw first test case from first suite to console
+async function debugRawResponse(planId, pat) {
+  const base = `https://dev.azure.com/${ORG}/${PROJECT}/_apis/testplan`;
+  try {
+    const suitesResp = await adoFetch(`${base}/plans/${planId}/suites?api-version=7.0`, pat);
+    const suites = suitesResp.value || [];
+    if (suites.length === 0) { console.log('[DEBUG] No suites found'); return; }
+    const firstSuite = suites[0];
+    const tcResp = await adoFetch(`${base}/plans/${planId}/suites/${firstSuite.id}/testcases?api-version=7.0`, pat);
+    const tcs = tcResp.value || [];
+    console.log('[DEBUG] Suite:', firstSuite.name, '| TC count:', tcs.length);
+    if (tcs.length > 0) console.log('[DEBUG] First TC raw:', JSON.stringify(tcs[0], null, 2));
+    else console.log('[DEBUG] Suite has no test cases, trying next suite...');
+    // Try to find a suite with TCs
+    for (const s of suites.slice(1, 5)) {
+      const r = await adoFetch(`${base}/plans/${planId}/suites/${s.id}/testcases?api-version=7.0`, pat);
+      const t = r.value || [];
+      if (t.length > 0) {
+        console.log('[DEBUG] Suite with TCs:', s.name);
+        console.log('[DEBUG] First TC raw:', JSON.stringify(t[0], null, 2));
+        break;
+      }
+    }
+  } catch(e) { console.log('[DEBUG] Error:', e); }
+}
+
+function normaliseStatus(raw) {
+  const s = String(raw || '').toLowerCase().trim();
+  if (s === 'automated') return 'Automated';
+  if (s.includes('not required') || s === 'not applicable' || s === 'not needed') return 'NotNeeded';
+  // Downing custom values
+  if (s === 'automation required' || s === 'not automated' || s.includes('required') || s === '') return 'Required';
+  // Unknown — treat as required so nothing is silently ignored
+  console.warn('[QA Dashboard] Unknown automation status value:', raw);
+  return 'Required';
+}
+
+// ══════════════════════════════════════════════
+// LOAD HANDLER
+// ══════════════════════════════════════════════
+async function handleLoad() {
+  const pat = $('patInput').value.trim() || getPAT();
+  if (!pat) { setStatus('⚠ No PAT entered', true); return; }
+  setPAT(pat);
+  $('patInput').value = '';
+
+  const planId = state.currentPlanId;
+  state.loading = true;
+  $('loadBtn').disabled = true;
+  setStatus('Loading…');
+
+  showOverviewLoading();
+
+  try {
+    const data = await loadPlanData(planId, pat, (msg) => setStatus(msg));
+    state.data[planId] = data;
+    setStatus(`✓ Loaded ${data.stats.total} test cases · ${data.lastLoaded}`);
+    renderCurrentTab();
+  } catch (err) {
+    const msg = err.status
+      ? `HTTP ${err.status} — ${err.statusText}`
+      : String(err.message || err);
+    state.data[planId] = { error: msg };
+    setStatus(`✗ ${msg}`, true);
+    renderCurrentTab();
+  } finally {
+    state.loading = false;
+    $('loadBtn').disabled = false;
+  }
+}
+
+function setStatus(msg, isErr = false) {
+  const el = $('refreshStatus');
+  el.textContent = msg;
+  el.style.color = isErr ? 'var(--accent-red)' : 'var(--text-dim)';
+}
+
+// ══════════════════════════════════════════════
+// RENDER — OVERVIEW
+// ══════════════════════════════════════════════
+function showOverviewLoading() {
+  $('overviewContent').innerHTML = `
+    <div class="state-container">
+      <div class="spinner"></div>
+      <div class="state-title">Fetching test plan data…</div>
+      <div class="state-sub">Loading suites and test cases from ADO</div>
+    </div>`;
+}
+
+function renderOverview() {
+  const planId = state.currentPlanId;
+  const d = state.data[planId];
+  if (!d) return; // still pristine
+
+  if (d.error) {
+    $('overviewContent').innerHTML = `
+      <div class="error-box">
+        <div class="error-title">Failed to load Test Plan ${planId}</div>
+        <div class="error-body">${esc(d.error)}</div>
+      </div>`;
+    return;
+  }
+
+  const { stats, suiteStats } = d;
+  const cls  = stats.covPct >= 50 ? 'good' : stats.covPct >= 30 ? 'amber' : 'red';
+  const label = cls === 'good' ? 'On Track' : cls === 'amber' ? 'Below Target' : 'Critical Gap';
+  const planName = state.plans.find(p => p.id === planId)?.name || planId;
+
+  const suiteRows = suiteStats.map(s => {
+    const pct = s.pct ?? 0;
+    const barCls = pct >= 50 ? 'fill-good' : pct >= 30 ? 'fill-amber' : 'fill-red';
+    const pctCls = pct >= 50 ? '' : pct >= 30 ? 'clr-amber' : 'clr-red';
+    return `<tr>
+      <td class="mono" style="color:var(--text-primary)">${esc(s.name)}</td>
+      <td class="right">${s.total}</td>
+      <td class="right tag-automated">${s.automated}</td>
+      <td class="right tag-required">${s.required}</td>
+      <td class="right">
+        <div class="mini-bar-wrap">
+          <div class="mini-bar"><div class="mini-bar-fill ${barCls}" style="width:${pct}%"></div></div>
+          <span class="mini-bar-pct ${pctCls}">${s.pct !== null ? pct + '%' : '—'}</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  $('overviewContent').innerHTML = `
+    <div class="plan-card">
+      <div class="plan-header">
+        <span class="plan-title">${esc(planName)}</span>
+        <span class="plan-id">Plan #${planId}</span>
+      </div>
+
+      <div class="coverage-hero">
+        <span class="coverage-pct coverage-${cls}">${stats.covPct}%</span>
+        <span class="coverage-label">Automation<br>Coverage</span>
+        <span class="coverage-threshold-badge badge-${cls}">${label}</span>
+      </div>
+
+      <div class="progress-track">
+        <div class="progress-fill fill-${cls}" style="width:${stats.covPct}%"></div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-cell">
+          <div class="stat-val clr-blue">${stats.total}</div>
+          <div class="stat-lbl">Total Cases</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val clr-green">${stats.automated}</div>
+          <div class="stat-lbl">Automated</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val clr-amber">${stats.required}</div>
+          <div class="stat-lbl">Req. Automation</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val clr-dim">${stats.notNeeded}</div>
+          <div class="stat-lbl">Not Required</div>
+        </div>
+      </div>
+
+      <div class="suite-breakdown">
+        <div class="breakdown-title">Suite Breakdown</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Suite</th>
+              <th class="right">Total</th>
+              <th class="right">Auto</th>
+              <th class="right">Gap</th>
+              <th class="right">Coverage</th>
+            </tr>
+          </thead>
+          <tbody>${suiteRows || '<tr><td colspan="5" class="no-results">No suites with test cases found</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════
+// RENDER — GAP
+// ══════════════════════════════════════════════
+let gapFilter = { suite: '', search: '' };
+let gapTrendChart = null;
+
+function renderGap() {
+  const planId = state.currentPlanId;
+  const d = state.data[planId];
+
+  if (!d || d.error) {
+    $('gapContent').innerHTML = `
+      <div class="state-container">
+        <div class="state-icon">⚠</div>
+        <div class="state-title">${d?.error ? 'Error loading data' : 'No data loaded'}</div>
+        <div class="state-sub">Load a test plan from the Coverage Overview tab first.</div>
+      </div>`;
+    return;
+  }
+
+  // Build suite list for filter
+  const suites = [...new Set(d.testCases.filter(tc => tc.automationStatus === 'Required').map(tc => tc.suiteName))].sort();
+  const suiteOptions = suites.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+
+  // Determine suite coverage to assign priority
+  const suiteAutoMap = {};
+  (d.suiteStats || []).forEach(s => { suiteAutoMap[s.name] = s.automated; });
+
+  $('gapContent').innerHTML = `
+    <div class="gap-toolbar">
+      <input type="text" class="search-input" id="gapSearch" placeholder="Search test case title…" value="${esc(gapFilter.search)}">
+      <select id="gapSuiteFilter" style="min-width:160px;">
+        <option value="">All Suites</option>
+        ${suiteOptions}
+      </select>
+      <span class="gap-count" id="gapCount"></span>
+    </div>
+    <div id="gapTableWrap"></div>`;
+
+  // Restore filter state
+  if (gapFilter.suite) $('gapSuiteFilter').value = gapFilter.suite;
+
+  $('gapSearch').addEventListener('input', e => { gapFilter.search = e.target.value; renderGapTable(); });
+  $('gapSuiteFilter').addEventListener('change', e => { gapFilter.suite = e.target.value; renderGapTable(); });
+
+  renderGapTable();
+}
+
+function renderGapTable() {
+  const planId = state.currentPlanId;
+  const d = state.data[planId];
+  const suiteAutoMap = {};
+  (d.suiteStats || []).forEach(s => { suiteAutoMap[s.name] = s.automated; });
+
+  let cases = d.testCases.filter(tc => tc.automationStatus === 'Required');
+
+  if (gapFilter.suite) cases = cases.filter(tc => tc.suiteName === gapFilter.suite);
+  if (gapFilter.search) {
+    const q = gapFilter.search.toLowerCase();
+    cases = cases.filter(tc => tc.title.toLowerCase().includes(q) || String(tc.id).includes(q));
+  }
+
+  $('gapCount').innerHTML = `<span>${cases.length}</span> test case${cases.length !== 1 ? 's' : ''} require automation`;
+
+  if (cases.length === 0) {
+    $('gapTableWrap').innerHTML = `<div class="no-results">No results matching current filters</div>`;
+    return;
+  }
+
+  // Group by suite
+  const grouped = {};
+  cases.forEach(tc => {
+    if (!grouped[tc.suiteName]) grouped[tc.suiteName] = [];
+    grouped[tc.suiteName].push(tc);
+  });
+
+  let rows = '';
+  Object.entries(grouped).forEach(([suiteName, tcs]) => {
+    const suiteAuto = suiteAutoMap[suiteName] ?? 0;
+    rows += `<tr class="suite-group-header">
+      <td colspan="4" class="suite-name-col">${esc(suiteName)}</td>
+      <td colspan="1" style="text-align:right; color:var(--text-dim)">${tcs.length} gap${tcs.length !== 1 ? 's' : ''}</td>
+    </tr>`;
+
+    tcs.forEach(tc => {
+      const isHighPriority = suiteAuto === 0;
+      const pBadge = isHighPriority
+        ? `<span class="priority-badge priority-high" data-tip="New area — zero automated coverage">New Area</span>`
+        : `<span class="priority-badge priority-medium" data-tip="Gap within partially automated suite">Gap</span>`;
+
+      rows += `<tr>
+        <td class="tc-id">#${esc(tc.id)}</td>
+        <td style="color:var(--text-primary); max-width:400px; white-space:normal; word-break:break-word">${esc(tc.title)}</td>
+        <td class="muted">${esc(suiteName)}</td>
+        <td>${pBadge}</td>
+        <td class="right dim">P${tc.priority || '—'}</td>
+      </tr>`;
+    });
+  });
+
+  $('gapTableWrap').innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Title</th>
+          <th>Suite</th>
+          <th>Priority</th>
+          <th class="right">WI Pri</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ══════════════════════════════════════════════
+// RENDER — TREND
+// ══════════════════════════════════════════════
+let trendChart = null;
+
+function renderTrendTab() {
+  const planId = state.currentPlanId;
+  const points = getTrendData(planId);
+
+  $('trendContent').innerHTML = `
+    <div class="trend-layout">
+      <div class="chart-card">
+        <div class="chart-title">Automation Coverage % — Weekly Trend · Plan ${planId}</div>
+        <div class="chart-wrap">
+          <canvas id="trendCanvas"></canvas>
+        </div>
+      </div>
+      <div>
+        <div class="data-entry-card">
+          <div class="card-section-title">Add Weekly Data Point</div>
+          <div class="form-field">
+            <label>Week of (date)</label>
+            <input type="date" id="trendDate" value="${todayStr()}">
+          </div>
+          <div class="form-field">
+            <label>Automated Count</label>
+            <input type="number" id="trendAuto" placeholder="e.g. 42" min="0">
+          </div>
+          <div class="form-field">
+            <label>Total Test Cases</label>
+            <input type="number" id="trendTotal" placeholder="e.g. 120" min="1">
+          </div>
+          <button class="btn" id="addTrendPoint">Add Data Point</button>
+        </div>
+
+        <div class="data-entry-card" style="margin-top:12px;">
+          <div class="card-section-title">Saved Data Points</div>
+          <div class="trend-points-list" id="trendPointsList"></div>
+        </div>
+      </div>
+    </div>`;
+
+  $('addTrendPoint').addEventListener('click', () => {
+    const date  = $('trendDate').value;
+    const auto  = parseInt($('trendAuto').value, 10);
+    const total = parseInt($('trendTotal').value, 10);
+    if (!date || isNaN(auto) || isNaN(total) || total <= 0) {
+      alert('Please fill in all fields with valid values.');
+      return;
+    }
+    const pts = getTrendData(planId);
+    pts.push({ date, auto, total, pct: Math.round((auto / total) * 100) });
+    pts.sort((a, b) => a.date.localeCompare(b.date));
+    saveTrendData(planId, pts);
+    renderTrendChart();
+    renderTrendList();
+    $('trendAuto').value = '';
+    $('trendTotal').value = '';
+  });
+
+  renderTrendChart();
+  renderTrendList();
+}
+
+function renderTrendChart() {
+  const planId = state.currentPlanId;
+  const points = getTrendData(planId);
+  const canvas = $('trendCanvas');
+  if (!canvas) return;
+
+  if (trendChart) { trendChart.destroy(); trendChart = null; }
+
+  if (points.length === 0) {
+    const ctx2 = canvas.getContext('2d');
+    ctx2.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.insertAdjacentHTML('afterend', '<div id="trendEmpty" class="empty-trend">No data yet — add your first weekly snapshot</div>');
+    return;
+  }
+
+  const empty = document.getElementById('trendEmpty');
+  if (empty) empty.remove();
+
+  const labels = points.map(p => p.date);
+  const data   = points.map(p => p.pct);
+
+  const ctx = canvas.getContext('2d');
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Coverage %',
+        data,
+        borderColor: '#39c5cf',
+        backgroundColor: 'rgba(57,197,207,0.08)',
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: '#39c5cf',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 2
+      },
+      {
+        label: '50% target',
+        data: labels.map(() => 50),
+        borderColor: 'rgba(210,153,34,0.4)',
+        borderDash: [5, 5],
+        pointRadius: 0,
+        borderWidth: 1,
+        fill: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#8b949e',
+            font: { family: "'IBM Plex Mono'", size: 10 },
+            boxWidth: 14
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1f2328',
+          borderColor: '#2a2e35',
+          borderWidth: 1,
+          titleColor: '#e8eaed',
+          bodyColor: '#8b949e',
+          titleFont: { family: "'IBM Plex Mono'", size: 11 },
+          bodyFont: { family: "'IBM Plex Mono'", size: 11 },
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.y}%`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#8b949e', font: { family: "'IBM Plex Mono'", size: 10 } },
+          grid: { color: '#1e2228' }
+        },
+        y: {
+          min: 0,
+          max: 100,
+          ticks: {
+            color: '#8b949e',
+            font: { family: "'IBM Plex Mono'", size: 10 },
+            callback: v => v + '%'
+          },
+          grid: { color: '#1e2228' }
+        }
+      }
+    }
+  });
+}
+
+function renderTrendList() {
+  const planId = state.currentPlanId;
+  const points = getTrendData(planId);
+  const el = $('trendPointsList');
+  if (!el) return;
+
+  if (points.length === 0) {
+    el.innerHTML = '<div class="empty-trend">No data points yet</div>';
+    return;
+  }
+
+  el.innerHTML = [...points].reverse().map((p, i) => {
+    const realIdx = points.length - 1 - i;
+    return `<div class="trend-point-row">
+      <span class="trend-point-date">${p.date}</span>
+      <span class="trend-point-val">${p.pct}%</span>
+      <span class="dim" style="font-family:var(--font-mono);font-size:10px">${p.auto}/${p.total}</span>
+      <button class="delete-btn" onclick="deleteTrendPoint(${realIdx})" title="Remove">×</button>
+    </div>`;
+  }).join('');
+}
+
+function deleteTrendPoint(idx) {
+  const planId = state.currentPlanId;
+  const pts = getTrendData(planId);
+  pts.splice(idx, 1);
+  saveTrendData(planId, pts);
+  renderTrendChart();
+  renderTrendList();
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ══════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════
+let activeTab = 'overview';
+
+function switchTab(tabId) {
+  activeTab = tabId;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tabId}`));
+  renderCurrentTab();
+}
+
+function renderCurrentTab() {
+  if (activeTab === 'overview') renderOverview();
+  else if (activeTab === 'gap')  renderGap();
+  else if (activeTab === 'trend') renderTrendTab();
+}
+
+// ══════════════════════════════════════════════
+// PLAN MANAGEMENT
+// ══════════════════════════════════════════════
+function rebuildPlanSelect() {
+  const sel = $('planSelect');
+  sel.innerHTML = state.plans.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  sel.value = state.currentPlanId;
+}
+
+function showAddPlanModal() {
+  const m = $('addPlanModal');
+  m.style.display = 'flex';
+}
+
+// ══════════════════════════════════════════════
+// EVENTS
+// ══════════════════════════════════════════════
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+$('loadBtn').addEventListener('click', handleLoad);
+$('patInput').addEventListener('keydown', e => { if (e.key === 'Enter') handleLoad(); });
+
+$('planSelect').addEventListener('change', e => {
+  state.currentPlanId = e.target.value;
+  renderCurrentTab();
+});
+
+$('addPlanBtn').addEventListener('click', showAddPlanModal);
+
+$('debugBtn').addEventListener('click', () => {
+  const pat = getPAT();
+  if (!pat) { alert('Load data first so the PAT is saved in session.'); return; }
+  console.log('[DEBUG] Running raw API inspection — check browser console (F12)');
+  debugRawResponse(state.currentPlanId, pat);
+  setStatus('Debug output sent to console (F12)');
+});
+
+$('addPlanCancel').addEventListener('click', () => {
+  $('addPlanModal').style.display = 'none';
+});
+
+$('addPlanConfirm').addEventListener('click', () => {
+  const id   = $('newPlanId').value.trim();
+  const name = $('newPlanName').value.trim();
+  if (!id || !name) return;
+  if (!state.plans.find(p => p.id === id)) {
+    state.plans.push({ id, name: `${id} — ${name}` });
+    state.currentPlanId = id;
+    rebuildPlanSelect();
+  }
+  $('addPlanModal').style.display = 'none';
+  $('newPlanId').value = '';
+  $('newPlanName').value = '';
+  renderCurrentTab();
+});
+
+$('addPlanModal').addEventListener('click', e => {
+  if (e.target === $('addPlanModal')) $('addPlanModal').style.display = 'none';
+});
+
+// ── Restore PAT hint if already saved ──
+if (getPAT()) {
+  $('patInput').placeholder = '(Token saved — click Load)';
+}
+
+// ── Initial render ──
+renderTrendTab();
+</script>
+</body>
+</html>
