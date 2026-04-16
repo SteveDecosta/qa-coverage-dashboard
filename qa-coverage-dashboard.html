@@ -893,7 +893,7 @@ async function loadPlanData(planId, pat, onProgress = () => {}) {
   for (const suite of suites) {
     let tcs = [];
     try {
-      const tcUrl = `${baseTest}/plans/${planId}/suites/${suite.id}/testcases?api-version=${API_VER}`;
+      const tcUrl = `${baseTest}/plans/${planId}/suites/${suite.id}/testcases?api-version=${API_VER}&witFields=System.Id,System.Title,dwn_Automation%20Status,Microsoft.VSTS.Common.Priority`;
       const tcResp = await adoFetch(tcUrl, pat);
       tcs = tcResp.value || [];
     } catch (e) {
@@ -903,42 +903,37 @@ async function loadPlanData(planId, pat, onProgress = () => {}) {
     for (const tc of tcs) {
       const id = tc.testCase?.id;
       if (id && !tcSuiteMap[id]) {
+        // witFields comes back as array [{name, value}] when requested via query param
+        const witFields = tc.testCase?.witFields || tc.witFields || [];
+        // Also check workItemFields format
+        const workItemFields = tc.testCase?.workItemFields || [];
+        const allFields = [...witFields, ...workItemFields];
         tcSuiteMap[id] = {
-          suiteId:   suite.id,
-          suiteName: suite.name,
-          title:     tc.testCase?.name || 'Untitled',
-          priority:  tc.priority || 2
+          suiteId:          suite.id,
+          suiteName:        suite.name,
+          title:            tc.testCase?.name || 'Untitled',
+          priority:         tc.priority || 2,
+          witFields:        allFields,
+          automationStatus: tc.testCase?.automationStatus || ''
         };
       }
     }
   }
 
-  // 3. Batch fetch work item fields to get dwn_Automation Status
-  // WIT API supports up to 200 IDs per request
+  // 3. Assemble final test case list — status read from witFields returned inline
   const allTcIds = Object.keys(tcSuiteMap).map(Number);
-  onProgress(`Fetching fields for ${allTcIds.length} test cases…`);
-  const wiFieldMap = {}; // id -> automationStatus string
+  onProgress(`Processing ${allTcIds.length} test cases…`);
 
-  const BATCH_SIZE = 200;
-  for (let i = 0; i < allTcIds.length; i += BATCH_SIZE) {
-    const batch = allTcIds.slice(i, i + BATCH_SIZE);
-    try {
-      const wiUrl = `https://dev.azure.com/${ORG}/${PROJECT}/_apis/wit/workitems?ids=${batch.join(',')}&fields=System.Id,System.Title,dwn_Automation%20Status,Microsoft.VSTS.Common.Priority&api-version=${API_VER}`;
-      const wiResp = await adoFetch(wiUrl, pat);
-      for (const wi of (wiResp.value || [])) {
-        const f = wi.fields || {};
-        const raw = f['dwn_Automation Status'] || f['Microsoft.VSTS.TCM.AutomationStatus'] || '';
-        wiFieldMap[wi.id] = normaliseStatus(raw);
-      }
-    } catch(e) {
-      console.warn('[QA] WIT batch fetch failed:', e);
-    }
-  }
-
-  // 4. Assemble final test case list
   for (const [idStr, meta] of Object.entries(tcSuiteMap)) {
     const id = Number(idStr);
-    const status = wiFieldMap[id] || 'Required';
+    // witFields returned as array of {name, value} objects on the TC
+    const witFields = meta.witFields || [];
+    const rawStatus =
+      getFieldByName(witFields, 'dwn_Automation Status') ||
+      getFieldByName(witFields, 'Microsoft.VSTS.TCM.AutomationStatus') ||
+      meta.automationStatus || '';
+
+    const status = normaliseStatus(rawStatus);
     const tc = {
       id,
       title:            meta.title,
@@ -991,6 +986,16 @@ function getField(fields, key) {
   return f ? f.value : null;
 }
 
+function getFieldByName(fields, name) {
+  if (!Array.isArray(fields)) return null;
+  const f = fields.find(f =>
+    f.name === name || f.key === name ||
+    f.referenceName === name ||
+    (f.name || '').toLowerCase() === name.toLowerCase()
+  );
+  return f ? (f.value ?? f.text ?? null) : null;
+}
+
 // Debug helper — tests WIT batch API to inspect automation status field
 async function debugRawResponse(planId, pat) {
   const baseTestPlan = `https://dev.azure.com/${ORG}/${PROJECT}/_apis/testplan`;
@@ -1020,16 +1025,18 @@ async function debugRawResponse(planId, pat) {
 
     if (!firstTcId) { console.log('[DEBUG] No test cases found in any suite'); return; }
 
-    // Step 3: fetch that work item directly and dump ALL fields
-    console.log('[DEBUG] Step 3: Fetching WIT fields for TC', firstTcId);
-    const wiResp = await adoFetch(`${baseWit}/workitems/${firstTcId}?$expand=fields&api-version=7.0`, pat);
-    console.log('[DEBUG] ALL WIT fields:', JSON.stringify(wiResp.fields, null, 2));
-
-    // Step 4: try batch with explicit field name variations
-    console.log('[DEBUG] Step 4: Testing batch fetch field names...');
-    const batchUrl = `${baseWit}/workitems?ids=${firstTcId}&fields=System.Id,dwn_Automation%20Status,Microsoft.VSTS.TCM.AutomationStatus&api-version=7.0`;
-    const batchResp = await adoFetch(batchUrl, pat);
-    console.log('[DEBUG] Batch fields result:', JSON.stringify(batchResp, null, 2));
+    // Step 3: fetch same TC but with witFields param
+    console.log('[DEBUG] Step 3: Fetching TC with witFields param...');
+    for (const s of suites) {
+      try {
+        const r = await adoFetch(`${baseTest}/plans/${planId}/suites/${s.id}/testcases?api-version=7.0&witFields=System.Id,System.Title,dwn_Automation%20Status,Microsoft.VSTS.Common.Priority`, pat);
+        const tcs = r.value || [];
+        if (tcs.length > 0) {
+          console.log('[DEBUG] TC with witFields:', JSON.stringify(tcs[0], null, 2));
+          break;
+        }
+      } catch(e) {}
+    }
 
   } catch(e) { console.log('[DEBUG] Error:', e); }
 }
