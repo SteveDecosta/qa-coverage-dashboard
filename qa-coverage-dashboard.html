@@ -880,7 +880,7 @@ async function loadPlanData(planId, pat, onProgress = () => {}) {
 
   // 1. Get all suites — _apis/test confirmed working for downing-llp
   onProgress("Loading suites…");
-  const suitesUrl = `${baseTest}/plans/${planId}/suites?api-version=${API_VER}`;
+  const suitesUrl = `${baseTestPlan}/plans/${planId}/suites?api-version=${API_VER}`;
   const suitesResp = await adoFetch(suitesUrl, pat);
   const suites = suitesResp.value || [];
 
